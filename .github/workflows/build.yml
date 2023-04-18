@@ -1,66 +1,137 @@
 name: build
 on:
-  workflow_dispatch: {}
+  push:
+    tags:
+      - "v*"
+env:
+  SHORT_NAME: rcoplo_bot
+  CRATE_NAME: rcoplo_bot
+
 jobs:
-  build:
-    name: build
+  compile:
+    name: Compile
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        build: [linux, macos, windows]
         include:
-          - build: linux
-            os: ubuntu-20.04
-            rust: nightly
+          # Linux
+          - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            archive-name: rcoplo_bot-linux.tar.gz
-          - build: macos
-            os: macos-latest
-            rust: nightly
+            release_name: x86_64-linux-musl
+            postfix: ""
+            extra_args: "--features silk"
+            cross: true
+
+          - os: ubuntu-latest
+            target: i686-unknown-linux-musl
+            release_name: i686-linux-musl
+            postfix: ""
+            extra_args: "--features silk"
+            cross: true
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            release_name: aarch64-linux-musl
+            postfix: ""
+            extra_args: "--features silk"
+            cross: true
+
+          - os: ubuntu-latest
+            target: riscv64gc-unknown-linux-gnu
+            release_name: riscv64gc-linux-gnu
+            postfix: ""
+            extra_args: ""
+            cross: true
+
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+            release_name: armv7-linux-gnueabihf
+            postfix: ""
+            extra_args: ""
+            cross: true
+
+          # Windows GNU
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+            release_name: x86_64-windows-gnu.exe
+            postfix: ".exe"
+            extra_args: "--features silk"
+            cross: true
+
+          - os: ubuntu-latest
+            target: i686-pc-windows-gnu
+            release_name: i686-windows-gnu.exe
+            postfix: ".exe"
+            extra_args: "--features silk"
+            cross: true
+
+          # Mac OSX
+          - os: macos-latest
             target: x86_64-apple-darwin
-            archive-name: rcoplo_bot-macos.tar.gz
-          - build: windows
-            os: windows-2019
-            rust: nightly-x86_64-msvc
-            target: x86_64-pc-windows-msvc
-            archive-name: rcoplo_bot-windows.7z
-      fail-fast: false
+            release_name: x86_64-mac
+            postfix: ""
+            extra_args: "--features silk"
+            cross: false
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v2
         with:
-          toolchain: ${{ matrix.rust }}
-          profile: minimal && apt install musl-tools
-          override: true
+          submodules: recursive
+
+      - name: Resume cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.target }}-release-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ matrix.target }}-release
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
           target: ${{ matrix.target }}
-      - name: Build binary
-        run: cargo build --verbose --release --target ${{ matrix.target }}
-        env:
-          RUST_BACKTRACE: 1
-      
-      - name: Strip binary (linux and macos)
-        if: matrix.build == 'linux' || matrix.build == 'macos'
-        run: strip "target/${{ matrix.target }}/release/rcoplo_bot"
+          override: true
 
-      - name: Build archive
-        shell: bash
-        run: |
-          mkdir archive
-          cp LICENSE README.md archive/
-          cd archive
-          if [ "${{ matrix.build }}" = "windows" ]; then
-            cp "../target/${{ matrix.target }}/release/rcoplo_bot.exe" ./
-            7z a "${{ matrix.archive-name }}" LICENSE README.md rcoplo_bot.exe
-          else
-            cp "../target/${{ matrix.target }}/release/rcoplo_bot" ./
-            tar -czf "${{ matrix.archive-name }}" LICENSE README.md rcoplo_bot
-          fi
-      - name: Upload archive
-        uses: actions/upload-artifact@v1
+      - uses: actions-rs/cargo@v1
         with:
-          name: ${{ matrix.archive-name }}
-          path: archive/${{ matrix.archive-name }}
+          use-cross: ${{ matrix.cross }}
+          command: build
+          args: --release --target ${{ matrix.target }} ${{ matrix.extra_args }}
+
+      - name: Rename binary
+        run: mv target/${{ matrix.target }}/release/${{ env.CRATE_NAME }}${{ matrix.postfix }} ${{ env.SHORT_NAME }}-${{ matrix.release_name }}
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: compile
+          path: ${{ env.SHORT_NAME }}-${{ matrix.release_name }}
+
+  release:
+    name: Release
+    needs: [compile]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: compile
+          path: ./packages
+
+      - name: Compress
+        run: bash ./.github/compress.sh
+
+      - name: Github release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            packages/*
+            LICENSE
