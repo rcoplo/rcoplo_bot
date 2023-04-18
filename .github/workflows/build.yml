@@ -34,15 +34,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
+          profile: minimal && apt install musl-tools
           override: true
           target: ${{ matrix.target }}
-
       - name: Build binary
         run: cargo build --verbose --release --target ${{ matrix.target }}
         env:
           RUST_BACKTRACE: 1
-
+      
       - name: Strip binary (linux and macos)
         if: matrix.build == 'linux' || matrix.build == 'macos'
         run: strip "target/${{ matrix.target }}/release/rcoplo_bot"
