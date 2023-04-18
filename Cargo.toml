@@ -1,0 +1,48 @@
+[package]
+name = "rcoplo_bot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+#nonebot_rs ={git = "https://github.com/rcoplo/nonebot-rs.git",features = ["scheduler","matcher"]}
+nonebot_rs ={path = "../nonebot-rs/nonebot_rs",features = ["scheduler","matcher"]}
+tokio = {version = "1",features = ["full"]}
+
+regex = {version = "1"}
+
+rbs = { version = "4.3"}
+rbatis = { version = "4.3"}
+rbdc-sqlite = { version = "4.3" }
+
+[dependencies.serde]
+verison = "1"
+features = ["derive"]
+
+[dependencies.serde_json]
+verison = "1"
+
+[dependencies.serde_yaml]
+verison = "0"
+
+[dependencies.thiserror]
+version = "1"
+
+[dependencies.base64]
+version = "0"
+
+[dependencies.reqwest]
+version = "0"
+features = ["json"]
+
+[dependencies.once_cell]
+version = "1"
+
+[dependencies.og_image_writer]
+version = "0.11.0"
+
+[dependencies.chrono]
+version = "0"
+features = ["serde"]

@@ -1,0 +1,173 @@
+use base64::Engine;
+use nonebot_rs::event::MessageEvent;
+use nonebot_rs::matcher::{Handler, Matcher};
+use nonebot_rs::{async_trait, on_command, on_match};
+
+use nonebot_rs::builtin::prematchers;
+
+use nonebot_rs::message::{MessageChain, MessageVec};
+
+use crate::BotResult;
+use crate::plugins::setu::LoliconApiBuilder;
+use crate::util::http_get_image;
+
+
+on_command!(MessageEvent,SetuPlugin,Setu => "色图",Setur => "色图r",{
+    Matcher::new("SetuPlugin",SetuPlugin::new())
+    .add_pre_matcher(prematchers::command_start())
+});
+
+#[async_trait]
+impl Handler<MessageEvent> for SetuPlugin  {
+    on_match!(MessageEvent);
+    async fn handle(&self, _: MessageEvent, m: Matcher<MessageEvent>) {
+        match &self.commands {
+            Commands::Setu(_,command) => {
+                let setu = setu_builder(command, false);
+                match setu_send(&m, setu).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        m.send_text(&err.to_string()).await;
+                    }
+                };
+            }
+            Commands::Setur(_,command) => {
+                let setu = setu_builder(command, true);
+                match setu_send(&m, setu).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        m.send_text(&err.to_string()).await;
+                    }
+                };
+            }
+            _ => {}
+        }
+    }
+}
+
+enum SetuType {
+    Array(LoliconApiBuilder),
+    Single(LoliconApiBuilder),
+}
+async fn setu_send(m: &Matcher<MessageEvent>, setu: SetuType) -> BotResult<()> {
+    let mut chain:MessageVec;
+    match setu {
+        SetuType::Array(s) => {
+            match LoliconApiBuilder::get_array(&s).await {
+                Ok(setu) => {
+                    for setu in setu {
+                        chain = MessageChain::new()
+                            .text(format!("title: {}\n", setu.title))
+                            .text(format!("pid: {}\n", setu.pid))
+                            .text(format!("author: {}\n", setu.author))
+                            .image(&match http_get_image(&setu.urls.original).await {
+                                Ok(d) => {format!("base64://{}",d)}
+                                Err(err) => {
+                                    format!("base64://{}", base64::engine::general_purpose::STANDARD.encode(err.to_string()))
+                                }
+                            })
+                            .build();
+                        match m.send(chain).await {
+                            None => {
+                                m.send_text(&format!("这张色图失败喵... Pid:{}",setu.pid)).await;
+                            }
+                            Some(message_id) => {
+                                de_msg(message_id.message_id,&m);
+                            }
+                        };
+                    }
+                }
+                Err(err) => {
+                    m.send_text(&err.to_string()).await;
+                }
+            }
+        }
+        SetuType::Single(s) => {
+            match LoliconApiBuilder::get(&s).await {
+                Ok(setu) => {
+                     chain = MessageChain::new()
+                        .text(format!("title: {}\n", setu.title))
+                        .text(format!("pid: {}\n", setu.pid))
+                        .text(format!("author: {}\n", setu.author))
+                         .image(&match http_get_image(&setu.urls.original).await {
+                             Ok(d) => {format!("base64://{}",d)}
+                             Err(err) => {
+                                 format!("base64://{}",base64::engine::general_purpose::STANDARD.encode(err.to_string()))
+                             }
+                         })
+                        .build();
+                    match m.send(chain).await {
+                        None => {
+                            m.send_text(&format!("发送色图失败喵... Pid:{}",setu.pid)).await;
+                        }
+                        Some(message_id) => {
+                            de_msg(message_id.message_id,&m);
+                        }
+                    };
+                }
+                Err(err) => {
+                    m.send_text(&err.to_string()).await;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn de_msg(message_id:i32,m: &Matcher<MessageEvent>) {
+    let m = m.clone();
+    tokio::spawn(async move{
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+        m.delete_msg(message_id).await;
+    });
+}
+fn setu_builder(data: &Vec<String>, is_r18: bool) -> SetuType {
+    let mut builder = LoliconApiBuilder::new();
+    if is_r18 {
+        if !data.is_empty() {
+            match data.first().unwrap().parse::<i8>() {
+                Ok(n) => {
+                    if data.len() > 1 {
+                        let mut data = data.clone();
+                        data.remove(0);
+                        SetuType::Array(builder.tag(data).num(n).r18().build())
+                    } else {
+                        if n <= 20 {
+                            SetuType::Array(builder.num(n).r18().build())
+                        } else {
+                            SetuType::Single(builder.r18().build())
+                        }
+                    }
+                }
+                Err(_) => {
+                    SetuType::Single(builder.tag(data.clone()).r18().build())
+                }
+            }
+        } else {
+            SetuType::Single(builder.r18().build())
+        }
+    } else {
+        if !data.is_empty() {
+            match data.first().unwrap().parse::<i8>() {
+                Ok(n) => {
+                    if data.len() > 1 {
+                        let mut data = data.clone();
+                        data.remove(0);
+                        SetuType::Array(builder.tag(data).num(n).no_r18().build())
+                    } else {
+                        if n <= 20 {
+                            SetuType::Array(builder.num(n).no_r18().build())
+                        } else {
+                            SetuType::Single(builder.no_r18().build())
+                        }
+                    }
+                }
+                Err(_) => {
+                    SetuType::Single(builder.tag(data.clone()).no_r18().build())
+                }
+            }
+        } else {
+            SetuType::Single(builder.no_r18().build())
+        }
+    }
+}

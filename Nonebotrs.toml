@@ -1,0 +1,11 @@
+[global]
+debug = false
+superusers = ["2939599299"]
+nicknames = ["小白"]
+command_starts = ["/"]
+
+[ws_server]
+host = "127.0.0.1"
+port = 29355
+access_token = ""
+
