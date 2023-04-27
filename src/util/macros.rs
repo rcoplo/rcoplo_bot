@@ -70,12 +70,15 @@ macro_rules! plugin_sqlite {
 #[macro_export]
 macro_rules! resource_path {
     ($($path:literal),*) => {{
-        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("resources");
+        // let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        // path.push("resources");
+        let mut path = String::new();
+        path.push_str("./resources");
         $(
-        path.push($path);
+        path.push_str(&format!("/{}",$path));
         )*
-        path.to_string_lossy().to_string()
+        // path.to_string_lossy().to_string()
+        path
     }};
 }
 
@@ -85,13 +88,17 @@ macro_rules! resource_tmp_path {
         resource_tmp_path!(=>$name);
     };
     ($($path:literal),* => $name:literal) => {{
-        let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        path.push("resources");
+        let mut path = String::new();
+        path.push_str("./resources");
+        // let mut path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        // path.push("resources");
         $(
-        path.push($path);
+        path.push_str(&format!("/{}",$path));
         )*
-        path.push(format!("{}_{}", rbatis::rbdc::uuid::Uuid::new().0,$name));
-        path.to_string_lossy().to_string()
+
+        path.push_str(format!("/{}_{}", rbatis::rbdc::uuid::Uuid::new().0,$name));
+        // path.to_string_lossy().to_string()
+        path
     }};
 
 }
@@ -197,7 +204,7 @@ mod test {
 
     impl BotContext {
         pub async fn init_pool(&self) {
-            let path = resource_path!("data" =>"bot.db").unwrap_or_default();
+            let path = resource_path!("data","bot.db");
             println!("db path: {}",&path);
             self.rb.init(rbdc_sqlite::driver::SqliteDriver {}, path.as_str()).unwrap();
             let mut s = rbatis::table_sync::SqliteTableSync::default();
@@ -210,5 +217,9 @@ mod test {
                 .await
                 .unwrap();
         }
+    }
+    fn path(){
+        let mut path = String::new();
+
     }
 }

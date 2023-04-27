@@ -1,56 +1,46 @@
 use base64::Engine;
-use nonebot_rs::event::MessageEvent;
-use nonebot_rs::matcher::{Handler, Matcher};
-use nonebot_rs::{async_trait, on_command, on_match};
-
-use nonebot_rs::builtin::prematchers;
-
-use nonebot_rs::message::{MessageChain, MessageVec};
+use nonebot_rs::matcher_vec;
+use nonebot_rs::prelude::{ At, MessageChain, MessageChainTrait, MessageEvent, event, Matcher};
 
 use crate::BotResult;
 use crate::plugins::setu::LoliconApiBuilder;
 use crate::util::http_get_image;
 
-
-on_command!(MessageEvent,SetuPlugin,Setu => "色图",Setur => "色图r",{
-    Matcher::new("SetuPlugin",SetuPlugin::new())
-    .add_pre_matcher(prematchers::command_start())
-});
-
-#[async_trait]
-impl Handler<MessageEvent> for SetuPlugin  {
-    on_match!(MessageEvent);
-    async fn handle(&self, _: MessageEvent, m: Matcher<MessageEvent>) {
-        match &self.commands {
-            Commands::Setu(_,command) => {
-                let setu = setu_builder(command, false);
-                match setu_send(&m, setu).await {
-                    Ok(_) => {}
-                    Err(err) => {
-                        m.send_text(&err.to_string()).await;
-                    }
-                };
-            }
-            Commands::Setur(_,command) => {
-                let setu = setu_builder(command, true);
-                match setu_send(&m, setu).await {
-                    Ok(_) => {}
-                    Err(err) => {
-                        m.send_text(&err.to_string()).await;
-                    }
-                };
-            }
-            _ => {}
+#[event(bot_command = "/色图 {param}")]
+async fn setu(_e:MessageEvent,m:Matcher<MessageEvent>,param:Vec<String>) {
+    let setu = setu_builder(&param, false);
+    match setu_send(&m, setu).await {
+        Ok(_) => {}
+        Err(err) => {
+            m.send_text(&err.to_string()).await;
         }
-    }
+    };
 }
+
+#[event(bot_command = "/色图r {param}")]
+async fn setur(_e:MessageEvent,m:Matcher<MessageEvent>,param:Vec<String>) {
+    let setu = setu_builder(&param, true);
+    match setu_send(&m, setu).await {
+        Ok(_) => {}
+        Err(err) => {
+            m.send_text(&err.to_string()).await;
+        }
+    };
+}
+
+matcher_vec!(MessageEvent,{
+    vec![
+        Matcher::new("setu",setu::default()),
+        Matcher::new("setur",setur::default()),
+    ]
+});
 
 enum SetuType {
     Array(LoliconApiBuilder),
     Single(LoliconApiBuilder),
 }
 async fn setu_send(m: &Matcher<MessageEvent>, setu: SetuType) -> BotResult<()> {
-    let mut chain:MessageVec;
+    let mut chain:MessageChain;
     match setu {
         SetuType::Array(s) => {
             match LoliconApiBuilder::get_array(&s).await {

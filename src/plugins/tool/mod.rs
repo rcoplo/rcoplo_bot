@@ -1,5 +1,4 @@
 
-mod group;
+pub(crate) mod group;
 
-pub use group::GroupPlugin;
 

@@ -2,8 +2,8 @@ use rbatis::{crud, impl_select};
 use crate::{BotError, BotResult, pool};
 use crate::util::http_get;
 
-mod mc_status;
-pub use mc_status::McStatusPlugin;
+pub mod mc_status;
+// pub use mc_status::McStatusPlugin;
 
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct McServer {

@@ -1,7 +1,7 @@
-mod setu;
+pub(crate) mod setu;
 
 use serde_json::{json, Value};
-pub use setu::SetuPlugin;
+
 use crate::error::{BotError, BotResult};
 use crate::plugin_settings;
 

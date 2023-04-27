@@ -1,6 +1,4 @@
-use base64::engine::Config;
-
-
+use nonebot_rs::prelude::{Matcher, MessageEvent, NoticeEvent};
 use crate::plugin_config;
 use crate::plugins::setu::SetuPluginConfig;
 
@@ -9,15 +7,17 @@ mod mc_status;
 mod tool;
 
 pub use mc_status::McServer;
-pub fn all_message_event_plugins_matcher() -> Vec<nonebot_rs::matcher::Matcher<nonebot_rs::event::MessageEvent>> {
-    vec![
-        setu::SetuPlugin::run(),
-        mc_status::McStatusPlugin::run(),
-    ]
+
+pub fn all_message_event_plugins_matcher() -> Vec<Matcher<MessageEvent>> {
+    let mut vec = vec![];
+    vec.extend(mc_status::mc_status::matcher());
+    vec.extend(setu::setu::matcher());
+    vec
 }
-pub fn all_notice_event_plugins_matcher() -> Vec<nonebot_rs::matcher::Matcher<nonebot_rs::event::NoticeEvent>> {
+
+pub fn all_notice_event_plugins_matcher() -> Vec<Matcher<NoticeEvent>> {
     vec![
-        tool::GroupPlugin::run(),
+        tool::group::matcher(),
     ]
 }
 

@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 
-nonebot_rs ={git = "https://github.com/rcoplo/nonebot-rs.git",features = ["scheduler","matcher"]}
-#nonebot_rs ={path = "../nonebot-rs/nonebot_rs",features = ["scheduler","matcher"]}
+#nonebot_rs ={git = "https://github.com/rcoplo/nonebot-rs.git",features = ["scheduler","matcher"]}
+nonebot_rs ={path = "../nonebot-rs/nonebot_rs",features = ["scheduler","matcher"]}
 tokio = {version = "1",features = ["full"]}
 
 regex = {version = "1"}
